@@ -1,0 +1,32 @@
+name: Docker Image Build
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version'
+        default: ''
+        required: true
+
+jobs:
+  package:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.202
+    - name: Add source
+      run: dotnet nuget add source --username rjwehrle --password ${{ secrets.FAMECIPE_NUGET }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Famecipe/index.json"
+    - name: Restore
+      run: dotnet restore
+    - name: Publish
+      run: dotnet publish -c Release -r linux-musl-x64
+    - name: Build image
+      run: docker build --tag docker.pkg.github.com/famecipe/microservice-images/famecipe.microservice.images:${{ github.event.inputs.version }} .
+    - name: Docker login
+      run: docker login docker.pkg.github.com -u rjwehrle -p ${{ secrets.FAMECIPE_NUGET }}
+    - name: Docker push
+      run: docker push docker.pkg.github.com/famecipe/microservice-images/famecipe.microservice.images:${{ github.event.inputs.version }}
